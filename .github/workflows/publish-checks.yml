@@ -1,0 +1,58 @@
+name: Publish checks
+
+# pull_request_target: this file and the checks come from the main branch, so a pull request can't
+# edit or switch off its own checks. The pull request's files are only read as text, never run.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: publish-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Publish checks
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Check out the main branch (trusted checks and catalogue)
+        uses: actions/checkout@v4
+        with:
+          path: trusted
+          persist-credentials: false
+
+      - name: Check out the pull request (read only)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+
+      # --no-renames: a file moved out of a protected folder shows up under its old path too.
+      - name: List what the pull request changed
+        run: git -C candidate diff --no-renames --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" > changed.txt
+
+      - name: Run publish checks
+        id: checks
+        run: |
+          pip install --quiet pyyaml
+          python3 trusted/checks/check_app.py --trusted trusted --candidate candidate --changed changed.txt --summary report.md
+          cat report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Post the result on the pull request
+        if: always()
+        run: test -f report.md && gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file report.md || true
+
+      # Only app code changed and everything passed: publish now. Anything touching app.yaml or a
+      # platform file waits for a CODEOWNERS engineer to approve and merge.
+      - name: Publish (merge) code-only changes
+        if: steps.checks.outputs.result == 'pass'
+        run: gh pr merge "$PR" --repo "$GITHUB_REPOSITORY" --squash --match-head-commit "${{ github.event.pull_request.head.sha }}"

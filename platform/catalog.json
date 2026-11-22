@@ -1,0 +1,261 @@
+{
+  "admin_roles": [
+    "platform_engineer"
+  ],
+  "connectors": {
+    "flags": {
+      "group": "internal"
+    },
+    "gdrive": {
+      "group": "blocked"
+    },
+    "kyc": {
+      "group": "internal"
+    },
+    "refunds": {
+      "group": "internal"
+    },
+    "slack": {
+      "group": "external"
+    }
+  },
+  "roles": {
+    "compliance_officer": "Compliance Officer",
+    "engineer": "Software Engineer",
+    "kyc_analyst": "KYC Analyst",
+    "platform_engineer": "Platform Engineer",
+    "product_manager": "Product Manager",
+    "support_agent": "Support Agent",
+    "support_lead": "Support Lead"
+  },
+  "tools": {
+    "flags.list_flags": {
+      "connector": "flags",
+      "description": "Flags and their current state.",
+      "inputs": {
+        "env": [
+          "prod",
+          "staging",
+          "any"
+        ]
+      },
+      "kind": "read",
+      "returns": [
+        "key",
+        "description",
+        "env",
+        "enabled",
+        "rollout",
+        "changed_by"
+      ]
+    },
+    "flags.set_flag": {
+      "connector": "flags",
+      "description": "Turn a flag on or off and optionally set its rollout percentage (0-100).",
+      "inputs": {
+        "enabled": "bool",
+        "key": "str",
+        "rollout": "int?"
+      },
+      "kind": "write",
+      "returns": [
+        "key",
+        "description",
+        "env",
+        "enabled",
+        "rollout",
+        "changed_by"
+      ]
+    },
+    "gdrive.upload_file": {
+      "connector": "gdrive",
+      "description": "Upload a file to the signed-in person's Drive.",
+      "inputs": {
+        "content": "str",
+        "name": "str"
+      },
+      "kind": "write",
+      "returns": [
+        "file_id"
+      ]
+    },
+    "kyc.decide_case": {
+      "connector": "kyc",
+      "description": "Approve or reject a case. Refused if the case is already decided.",
+      "inputs": {
+        "case_id": "str",
+        "decision": [
+          "approve",
+          "reject"
+        ],
+        "reason": "str"
+      },
+      "kind": "write",
+      "returns": [
+        "id",
+        "customer",
+        "country",
+        "risk",
+        "status",
+        "tax_id_last4",
+        "decided_by",
+        "decision_reason"
+      ]
+    },
+    "kyc.escalate_case": {
+      "connector": "kyc",
+      "description": "Send a new case to senior review.",
+      "inputs": {
+        "case_id": "str",
+        "reason": "str"
+      },
+      "kind": "write",
+      "returns": [
+        "id",
+        "customer",
+        "country",
+        "risk",
+        "status",
+        "tax_id_last4",
+        "decided_by",
+        "decision_reason"
+      ]
+    },
+    "kyc.get_case": {
+      "connector": "kyc",
+      "description": "One case, with only the last four characters of the tax ID.",
+      "inputs": {
+        "case_id": "str"
+      },
+      "kind": "read",
+      "returns": [
+        "id",
+        "customer",
+        "country",
+        "risk",
+        "status",
+        "tax_id_last4",
+        "decided_by",
+        "decision_reason"
+      ]
+    },
+    "kyc.get_case_full": {
+      "connector": "kyc",
+      "description": "One case, including the full tax ID.",
+      "inputs": {
+        "case_id": "str"
+      },
+      "kind": "read",
+      "returns": [
+        "id",
+        "customer",
+        "country",
+        "risk",
+        "status",
+        "tax_id_last4",
+        "decided_by",
+        "decision_reason",
+        "tax_id"
+      ]
+    },
+    "kyc.list_cases": {
+      "connector": "kyc",
+      "description": "Cases in the review queue, filtered by status.",
+      "inputs": {
+        "status": [
+          "new",
+          "escalated",
+          "approved",
+          "rejected",
+          "any"
+        ]
+      },
+      "kind": "read",
+      "returns": [
+        "id",
+        "customer",
+        "country",
+        "risk",
+        "status"
+      ]
+    },
+    "refunds.decline_refund": {
+      "connector": "refunds",
+      "description": "Decline a refund request with a reason.",
+      "inputs": {
+        "note": "str",
+        "refund_id": "str"
+      },
+      "kind": "write",
+      "returns": [
+        "id",
+        "customer",
+        "amount",
+        "currency",
+        "reason",
+        "status",
+        "handled_by",
+        "note"
+      ]
+    },
+    "refunds.issue_refund": {
+      "connector": "refunds",
+      "description": "Send the money back. Refused over 1,000 in any currency (needs a second approver).",
+      "inputs": {
+        "note": "str?",
+        "refund_id": "str"
+      },
+      "kind": "write",
+      "returns": [
+        "id",
+        "customer",
+        "amount",
+        "currency",
+        "reason",
+        "status",
+        "handled_by",
+        "note"
+      ]
+    },
+    "refunds.list_refunds": {
+      "connector": "refunds",
+      "description": "Refund requests, filtered by status.",
+      "inputs": {
+        "status": [
+          "pending",
+          "issued",
+          "declined",
+          "any"
+        ]
+      },
+      "kind": "read",
+      "returns": [
+        "id",
+        "customer",
+        "amount",
+        "currency",
+        "reason",
+        "status",
+        "handled_by",
+        "note"
+      ]
+    },
+    "slack.post_message": {
+      "connector": "slack",
+      "description": "Post a message to an approved Slack channel.",
+      "inputs": {
+        "channel": [
+          "#ops-alerts",
+          "#support"
+        ],
+        "text": "str"
+      },
+      "kind": "write",
+      "returns": [
+        "channel",
+        "text",
+        "sent_at"
+      ]
+    }
+  }
+}

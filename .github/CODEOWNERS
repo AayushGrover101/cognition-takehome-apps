@@ -1,0 +1,10 @@
+# Engineers must approve anything that changes what an app may do, and every platform file.
+# App code (html/js/css) has no owner here: it publishes when the publish checks pass.
+/apps/*/app.yaml   @AayushGrover101
+/AGENTS.md         @AayushGrover101
+/README.md         @AayushGrover101
+/checks/           @AayushGrover101
+/platform/         @AayushGrover101
+/shared/           @AayushGrover101
+/template/         @AayushGrover101
+/.github/          @AayushGrover101
