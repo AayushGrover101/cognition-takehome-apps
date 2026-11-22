@@ -91,6 +91,7 @@ def scan_js(code, strings="keep"):
             j = code.find("\n", i); i = n if j < 0 else j
         elif code.startswith("/*", i):
             j = code.find("*/", i + 2); i = n if j < 0 else j + 2
+            out.append(" ")
         elif c in "'\"":
             m = re.compile(c + r"(?:\\.|[^" + c + r"\\\n])*" + c).match(code, i)
             if not m:
