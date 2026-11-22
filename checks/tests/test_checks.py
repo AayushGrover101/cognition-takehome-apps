@@ -78,7 +78,7 @@ def test_unsafe_html_fails(tmp_path, html, problem):
 
 
 @pytest.mark.parametrize("yaml, problem", [
-    (YAML.replace("connectors: [refunds]", "connectors: [refunds, slack]"), "combine Internal and External"),
+    (YAML.replace("connectors: [refunds]", "connectors: [refunds, slack]"), "combine Business and Non-business"),
     (YAML.replace("connectors: [refunds]", "connectors: [refunds, gdrive]"), "is Blocked"),
     (YAML.replace("support_agent, support_lead", "support_agent, support_lead, wizard"), "Unknown role in access"),
     (YAML.replace("refunds.issue_refund", "refunds.delete_all"), "unknown tool refunds.delete_all"),

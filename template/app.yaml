@@ -2,7 +2,7 @@ title: New app
 description: One sentence on what this app is for.
 owner: team-name
 access: []            # roles that can open the app (see platform/catalog.json "roles")
-connectors: []        # e.g. [kyc]; can't mix Internal and External, can't use Blocked
+connectors: []        # e.g. [kyc]; can't mix Business and Non-business, can't use Blocked
 roles: {}             # per role: { tools: [kyc.list_cases, ...] } or [kyc.*]
 audit_reads: []       # read tools to record in this app's audit trail; writes are always recorded
 audit_viewers: []     # roles that can open this app's audit trail

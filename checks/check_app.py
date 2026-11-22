@@ -17,7 +17,7 @@ from pathlib import Path
 import yaml
 
 ALLOWED = {".html", ".js", ".css", ".svg", ".png", ".jpg", ".md"}
-GROUPS = ("internal", "external", "blocked")
+GROUPS = ("business", "non-business", "blocked")
 # Things app code must never contain: other network APIs, navigation, dynamic code, raw cookies.
 BANNED_JS = [
     (r"\bfetch\s*\(", "fetch() (use gateway.call)"),
@@ -156,8 +156,8 @@ def check_manifest(m, catalog):
             problems.append(f"Connector {c} is Blocked")
         else:
             groups.setdefault(g, []).append(c)
-    if "internal" in groups and "external" in groups:
-        problems.append("An app can't combine Internal and External connectors")
+    if "business" in groups and "non-business" in groups:
+        problems.append("An app can't combine Business and Non-business connectors")
     grants = m.get("roles") or {}
     if not isinstance(grants, dict):
         return problems + ["roles must map each role to its tools"], {}

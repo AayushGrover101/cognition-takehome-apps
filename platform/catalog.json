@@ -12,19 +12,19 @@
   },
   "connectors": {
     "flags": {
-      "group": "internal"
+      "group": "business"
     },
     "gdrive": {
       "group": "blocked"
     },
     "kyc": {
-      "group": "internal"
+      "group": "business"
     },
     "refunds": {
-      "group": "internal"
+      "group": "business"
     },
     "slack": {
-      "group": "external"
+      "group": "non-business"
     }
   },
   "roles": {

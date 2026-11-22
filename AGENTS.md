@@ -7,7 +7,7 @@ connector tools through the gateway. The gateway signs people in, checks every c
 
 ## Steps
 
-1. Read `platform/catalog.json`: the roles, the connectors and their group (internal, external, blocked), and every
+1. Read `platform/catalog.json`: the roles, the connectors and their group (business, non-business, blocked), and every
    tool with its kind (read or write), inputs and returned fields.
 2. Pick the tools the request needs. If a tool or field doesn't exist, stop and tell the requester that a platform
    engineer has to add it to a connector. Never work around it.
@@ -30,7 +30,7 @@ title: Refunds
 description: Review and issue customer refunds.
 owner: support
 access: [support_agent, support_lead]        # roles that can open the app
-connectors: [refunds]                        # can't mix Internal and External; can't use Blocked
+connectors: [refunds]                        # can't mix Business and Non-business; can't use Blocked
 roles:                                       # tools per role; anything not listed is refused by the gateway
   support_agent: { tools: [refunds.list_refunds, refunds.issue_refund] }
   support_lead:  { tools: [refunds.*] }      # every refunds tool, including ones added later
@@ -102,5 +102,5 @@ to the same app. The admin page `/admin` (Sam Kim) shows the app's grants, audit
 
 ## When the request can't be met
 
-Say so plainly instead of bending a rule: the tool or field doesn't exist, the app would need Internal and External
+Say so plainly instead of bending a rule: the tool or field doesn't exist, the app would need Business and Non-business
 connectors together, or a role would need a tool the requester can't justify. Those are platform engineers' calls.
