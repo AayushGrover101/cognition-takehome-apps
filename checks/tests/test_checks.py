@@ -85,6 +85,8 @@ def test_unsafe_html_fails(tmp_path, html, problem):
     (YAML.replace("refunds.issue_refund", "kyc.get_case"), "needs kyc in connectors"),
     (YAML.replace("owner: support\n", ""), "needs owner"),
     (YAML + "audit_viewers: [wizard]\n", "Unknown role in audit_viewers"),
+    (YAML + "audit_retention_days: 30\n", "at least 1825"),
+    (YAML + "audit_retention_days: forever\n", "at least 1825"),
 ])
 def test_bad_manifests_fail(tmp_path, yaml, problem):
     problems = check_app.check_app(make(tmp_path, yaml=yaml), CATALOG)

@@ -34,6 +34,7 @@ roles:                                       # tools per role; anything not list
   support_lead:  { tools: [refunds.*] }      # every refunds tool, including ones added later
 audit_reads: []                              # read tools to record; write tools are always recorded
 audit_viewers: [support_lead]                # roles that can open this app's audit trail
+audit_retention_days: 2555                   # keep entries 7 years; can't go below the company minimum
 ```
 
 - Grant the fewest tools each role needs. Prefer exact names over `connector.*`.
@@ -95,7 +96,7 @@ APPS_DIR=../cognition-takehome-apps python3 -m uvicorn gateway.main:app --port 8
 ```
 
 Open `http://localhost:8090/apps/<app-name>/`, sign in as a person with each role, and use the app. Sign out returns
-to the same app. The admin page `/admin` (Sam Kim) shows the app's grants and recent audit activity.
+to the same app. The admin page `/admin` (Sam Kim) shows the app's grants, audit settings and latest calls; its audit trail can be searched.
 
 ## When the request can't be met
 

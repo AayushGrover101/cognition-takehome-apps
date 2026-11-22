@@ -170,6 +170,10 @@ def check_manifest(m, catalog):
         problems.append("audit_viewers must be a list of roles")
     else:
         problems += [f"Unknown role in audit_viewers: {r}" for r in viewers if r not in roles]
+    minimum = (catalog.get("audit_retention_days") or {}).get("minimum", 1825)
+    days = m.get("audit_retention_days")
+    if "audit_retention_days" in m and (not isinstance(days, int) or isinstance(days, bool) or days < minimum):
+        problems.append(f"audit_retention_days must be a whole number of days, at least {minimum}")
     return problems, grants
 
 
