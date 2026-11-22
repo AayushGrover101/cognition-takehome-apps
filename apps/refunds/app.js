@@ -24,8 +24,8 @@ function showRefund(x, outcome) {
   const can = (t) => tools.includes(t);
   const pending = x.status === 'pending';
   const actions = pending ? [
-    can('refunds.issue_refund') ? '<button class="btn primary" data-act="issue">Issue refund</button>' : '',
-    can('refunds.decline_refund') ? '<button class="btn danger" data-act="decline">Decline</button>' : '',
+    can('refunds.issue_refund') ? '<button class="btn primary" data-act="issue" data-refund="${esc(x.id)}">Issue refund</button>' : '',
+    can('refunds.decline_refund') ? '<button class="btn danger" data-act="decline" data-refund="${esc(x.id)}">Decline</button>' : '',
   ].join('') : '';
   $('#detail').innerHTML = `<h2>${esc(ui.money(x.amount, x.currency))}</h2><p class="hint">${esc(x.id)} · ${esc(x.customer)}</p>
     <dl class="fields"><dt>Reason</dt><dd>${esc(x.reason)}</dd><dt>Status</dt><dd>${esc(ui.label(x.status))}</dd>
@@ -36,11 +36,12 @@ function showRefund(x, outcome) {
     ${ui.result(outcome)}`;
 }
 
-async function act(kind) {
+// The refund id comes from the button, so a click always acts on the refund the drawer shows.
+async function act(kind, id) {
   const note = $('#note').value.trim();
   const r = kind === 'issue'
-    ? await ui.attempt(() => gateway.call('refunds.issue_refund', note ? { refund_id: current, note } : { refund_id: current }), 'Refund issued.')
-    : await ui.attempt(() => gateway.call('refunds.decline_refund', { refund_id: current, note }), 'Refund declined.');
+    ? await ui.attempt(() => gateway.call('refunds.issue_refund', note ? { refund_id: id, note } : { refund_id: id }), 'Refund issued.')
+    : await ui.attempt(() => gateway.call('refunds.decline_refund', { refund_id: id, note }), 'Refund declined.');
   loadList(r);
 }
 
@@ -48,7 +49,7 @@ document.addEventListener('click', (e) => {
   const row = e.target.closest('tr[data-id]');
   if (row) { current = row.dataset.id; loadList(); }
   const button = e.target.closest('button[data-act]');
-  if (button) act(button.dataset.act);
+  if (button) act(button.dataset.act, button.dataset.refund);
 });
 $('#status').addEventListener('change', () => loadList());
 

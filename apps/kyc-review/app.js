@@ -20,9 +20,9 @@ function showCase(c, outcome) {
   const open = c.status === 'new' || c.status === 'escalated';
   const taxId = c.tax_id ? esc(c.tax_id) : `•••• ${esc(c.tax_id_last4)}`;
   const actions = [
-    can('kyc.get_case_full') && !c.tax_id ? '<button class="btn" data-act="full">Show full tax ID</button>' : '',
-    can('kyc.escalate_case') && c.status === 'new' ? '<button class="btn" data-act="escalate">Escalate</button>' : '',
-    can('kyc.decide_case') && open ? '<button class="btn primary" data-act="approve">Approve</button><button class="btn danger" data-act="reject">Reject</button>' : '',
+    can('kyc.get_case_full') && !c.tax_id ? '<button class="btn" data-act="full" data-case="${esc(c.id)}">Show full tax ID</button>' : '',
+    can('kyc.escalate_case') && c.status === 'new' ? '<button class="btn" data-act="escalate" data-case="${esc(c.id)}">Escalate</button>' : '',
+    can('kyc.decide_case') && open ? '<button class="btn primary" data-act="approve" data-case="${esc(c.id)}">Approve</button><button class="btn danger" data-act="reject" data-case="${esc(c.id)}">Reject</button>' : '',
   ].join('');
   const needsReason = actions.includes('escalate') || actions.includes('approve');
   $('#detail').innerHTML = `<h2>${esc(c.customer)}</h2><p class="hint">${esc(c.id)} · ${esc(ui.label(c.status))}</p>
@@ -42,24 +42,25 @@ async function selectCase(id, outcome) {
   loadQueue();
 }
 
-async function act(kind) {
+// The case id comes from the button, so a click always acts on the case the drawer shows.
+async function act(kind, id) {
   if (kind === 'full') {
-    const r = await ui.attempt(() => gateway.call('kyc.get_case_full', { case_id: current }));
-    return r.ok ? showCase(r.data) : selectCase(current, r);
+    const r = await ui.attempt(() => gateway.call('kyc.get_case_full', { case_id: id }));
+    return r.ok ? showCase(r.data) : selectCase(id, r);
   }
   const reason = ($('#reason') || {}).value?.trim() || '';
   const r = kind === 'escalate'
-    ? await ui.attempt(() => gateway.call('kyc.escalate_case', { case_id: current, reason }), 'Escalated to Compliance.')
-    : await ui.attempt(() => gateway.call('kyc.decide_case', { case_id: current, decision: kind, reason }),
+    ? await ui.attempt(() => gateway.call('kyc.escalate_case', { case_id: id, reason }), 'Escalated to Compliance.')
+    : await ui.attempt(() => gateway.call('kyc.decide_case', { case_id: id, decision: kind, reason }),
       kind === 'approve' ? 'Case approved.' : 'Case rejected.');
-  selectCase(current, r);
+  selectCase(id, r);
 }
 
 document.addEventListener('click', (e) => {
   const row = e.target.closest('tr[data-id]');
   if (row) selectCase(row.dataset.id);
   const button = e.target.closest('button[data-act]');
-  if (button) act(button.dataset.act);
+  if (button) act(button.dataset.act, button.dataset.case);
 });
 $('#status').addEventListener('change', loadQueue);
 

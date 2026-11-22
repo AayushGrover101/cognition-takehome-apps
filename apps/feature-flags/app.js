@@ -29,25 +29,27 @@ function showFlag(f, outcome) {
     ${canChange ? `<label for="enabled">State</label><select id="enabled"><option value="on"${f.enabled ? ' selected' : ''}>On</option>
       <option value="off"${f.enabled ? '' : ' selected'}>Off</option></select>
       <label for="rollout">Rollout (% of customers)</label><input id="rollout" type="number" min="0" max="100" value="${esc(f.rollout)}">
-      <div class="actions"><button class="btn primary" data-act="save">Save change</button></div>
+      <div class="actions"><button class="btn primary" data-act="save" data-flag="${esc(f.key)}">Save change</button></div>
       ${f.env === 'prod' ? '<p class="hint">Production change: recorded in this app\'s audit trail.</p>' : ''}`
     : '<p class="hint">View only. Ask an engineer to change this flag.</p>'}
     ${ui.result(outcome)}`;
 }
 
-async function save() {
-  const f = flags.find((x) => x.key === current);
+// The flag key comes from the button, so a click always saves the flag the drawer shows.
+async function save(key) {
+  const f = flags.find((x) => x.key === key);
   const enabled = $('#enabled').value === 'on';
   const rollout = Number($('#rollout').value);
   if (f.env === 'prod' && !confirm(`Change ${f.key} in production to ${enabled ? 'on' : 'off'} at ${rollout}%?`)) return;
-  const r = await ui.attempt(() => gateway.call('flags.set_flag', { key: current, enabled, rollout }), 'Flag updated.');
+  const r = await ui.attempt(() => gateway.call('flags.set_flag', { key, enabled, rollout }), 'Flag updated.');
   loadFlags(r);
 }
 
 document.addEventListener('click', (e) => {
   const row = e.target.closest('tr[data-id]');
   if (row) { current = row.dataset.id; loadFlags(); }
-  if (e.target.closest('button[data-act="save"]')) save();
+  const button = e.target.closest('button[data-act="save"]');
+  if (button) save(button.dataset.flag);
 });
 $('#env').addEventListener('change', () => loadFlags());
 
