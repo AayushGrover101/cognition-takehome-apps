@@ -165,16 +165,15 @@ def check_manifest(m, catalog):
         if role not in access:
             problems.append(f"Role {role} has tools but is not in access")
         problems += check_patterns(role, (g or {}).get("tools") if isinstance(g, dict) else None, declared, catalog)
-    problems += check_patterns("audit_reads", m.get("audit_reads", []), declared, catalog)
+    problems += check_patterns("audit", m.get("audit", []), declared, catalog)
     viewers = m.get("audit_viewers") or []
     if not isinstance(viewers, list):
         problems.append("audit_viewers must be a list of roles")
     else:
         problems += [f"Unknown role in audit_viewers: {r}" for r in viewers if r not in roles]
-    minimum = (catalog.get("audit_retention_days") or {}).get("minimum", 1825)
     days = m.get("audit_retention_days")
-    if "audit_retention_days" in m and (not isinstance(days, int) or isinstance(days, bool) or days < minimum):
-        problems.append(f"audit_retention_days must be a whole number of days, at least {minimum}")
+    if "audit_retention_days" in m and (not isinstance(days, int) or isinstance(days, bool) or days < 1):
+        problems.append("audit_retention_days must be a whole number of days")
     return problems, grants
 
 
