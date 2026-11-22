@@ -28,10 +28,15 @@ BANNED_JS = [
     (r"document\s*\.\s*cookie", "document.cookie"),
     (r"\bWorker\s*\(|serviceWorker", "workers"),
     (r"https?:|//[a-z0-9.-]+\.[a-z]{2,}", "an outside address"),
+    (r"\b(globalThis|window|self|document|top|parent|frames)\s*\[|\bglobalThis\b|\bReflect\b|\bconstructor\b|__proto__"
+     r"|\bfromCharCode\b|\batob\b|\bsetTimeout\s*\(\s*['\"`]|\bsetInterval\s*\(\s*['\"`]",
+     "computed or encoded access to browser globals"),
     (r"(?<![.\w$])gateway\b(?!\s*\.\s*(call|me)\s*\()", "storing or replacing the gateway object (only gateway.call() and gateway.me())"),
 ]
 BANNED_HTML = [
-    (r"<script(?![^>]*\bsrc=)[^>]*>", "an inline <script>"),
+    (r"<script(?![^>]*\bsrc\s*=)[^>]*>", "an inline <script>"),
+    (r"<script[^>]*\bsrc\s*=\s*[\"']?(?![\s\"'])(?!/web/|/shared/|[a-z0-9_-]+\.js\b)", "a script that isn't a local .js file"),
+    (r"\bdata:", "a data: address"),
     (r"\son[a-z]+\s*=", "an inline event handler (onclick= and similar)"),
     (r"<form\b", "a form"),
     (r"<(iframe|frame|object|embed)\b", "embedded pages"),
@@ -42,8 +47,50 @@ BANNED_HTML = [
 ]
 # Rules about identifiers ignore the text inside '...' and "..." strings, so "Refused by the gateway" is fine.
 NAME_RULES = ("opening windows", "reading or changing location (redirects)", "setting the referrer")
+BANNED_CSS = [
+    (r"@import", "@import"),
+    (r"url\(\s*['\"]?\s*(https?:|//|data:text|javascript:)", "an outside address"),
+    (r"expression\s*\(|behavior\s*:|-moz-binding", "CSS that runs code"),
+]
+BANNED_SVG = [
+    (r"<script\b", "a <script>"),
+    (r"\son[a-z]+\s*=", "an inline event handler"),
+    (r"<foreignObject\b", "embedded HTML"),
+    (r"(href|src)\s*=\s*[\"']?(https?:|//|javascript:|data:)", "an outside address"),
+]
 QUOTED = re.compile(r"'(?:\\.|[^'\\\n])*'|\"(?:\\.|[^\"\\\n])*\"")
+TEMPLATE = re.compile(r"`(?:\\.|[^`\\$]|\$(?!\{))*`")
+
+
+def mask_strings(code):
+    """Blank out quoted text (and template literals without ${...}), so words in messages don't count."""
+    return TEMPLATE.sub("``", QUOTED.sub("''", code))
+
+
+def keep_call_names(code):
+    """Blank quoted text except a string that is the first argument of gateway.call(...)."""
+    def keep(m):
+        before = code[:m.start()].rstrip()
+        return m.group(0) if re.search(r"gateway\s*\.\s*call\s*\($", before) else "''"
+    return TEMPLATE.sub("``", QUOTED.sub(keep, code))
+
+
 CALL = re.compile(r"gateway\s*\.\s*call\s*\(\s*(['\"])([a-z_]+\.[a-z_*]+)\1")
+
+
+def mask_strings(code):
+    """Blank out quoted text (and template literals without ${...}), so words in messages don't count."""
+    return TEMPLATE.sub("``", QUOTED.sub("''", code))
+
+
+def keep_call_names(code):
+    """Blank quoted text except a string that is the first argument of gateway.call(...)."""
+    def keep(m):
+        before = code[:m.start()].rstrip()
+        return m.group(0) if re.search(r"gateway\s*\.\s*call\s*\($", before) else "''"
+    return TEMPLATE.sub("``", QUOTED.sub(keep, code))
+
+
 ANY_CALL = re.compile(r"gateway\s*\.\s*call\s*\(")
 
 
@@ -82,7 +129,7 @@ def check_manifest(m, catalog):
         access = []
     problems += [f"Unknown role in access: {r}" for r in access if r not in roles]
     declared = m.get("connectors") or []
-    if not isinstance(declared, list):
+    if not isinstance(declared, list) or not all(isinstance(c, str) for c in declared):
         return problems + ["connectors must be a list"], {}
     groups = {}
     for c in declared:
@@ -103,7 +150,11 @@ def check_manifest(m, catalog):
             problems.append(f"Role {role} has tools but is not in access")
         problems += check_patterns(role, (g or {}).get("tools") if isinstance(g, dict) else None, declared, catalog)
     problems += check_patterns("audit_reads", m.get("audit_reads", []), declared, catalog)
-    problems += [f"Unknown role in audit_viewers: {r}" for r in m.get("audit_viewers", []) or [] if r not in roles]
+    viewers = m.get("audit_viewers") or []
+    if not isinstance(viewers, list):
+        problems.append("audit_viewers must be a list of roles")
+    else:
+        problems += [f"Unknown role in audit_viewers: {r}" for r in viewers if r not in roles]
     return problems, grants
 
 
@@ -117,7 +168,8 @@ def check_app(folder, catalog):
         return [f"app.yaml can't be read: {e}"]
     manifest_problems, grants = check_manifest(manifest, catalog)
     problems += manifest_problems
-    granted = [p for g in grants.values() if isinstance(g, dict) for p in (g.get("tools") or [])]
+    granted = [p for g in grants.values() if isinstance(g, dict) and isinstance(g.get("tools"), list)
+               for p in g["tools"] if isinstance(p, str)]
     if not (folder / "index.html").is_file():
         problems.append("index.html is missing")
     for path in sorted(folder.rglob("*")):
@@ -129,24 +181,28 @@ def check_app(folder, catalog):
             continue
         if not re.fullmatch(r"[a-z0-9._/-]+", rel):
             problems.append(f"{rel}: use lowercase letters, digits, dots and dashes in file names")
-        if path.suffix.lower() not in (".js", ".html"):
+        suffix = path.suffix.lower()
+        rules = {".js": BANNED_JS, ".html": BANNED_HTML, ".css": BANNED_CSS, ".svg": BANNED_SVG}.get(suffix)
+        if rules is None:
             continue
         text = path.read_text(errors="replace")
-        code = strip_comments(text) if path.suffix == ".js" else text
-        rules = BANNED_JS if path.suffix == ".js" else BANNED_HTML
-        names = QUOTED.sub("''", code)
+        code = strip_comments(text) if suffix == ".js" else re.sub(r"<!--.*?-->", " ", text, flags=re.S) \
+            if suffix in (".html", ".svg") else re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
+        names = mask_strings(code)
         for pattern, what in rules:
             target = names if path.suffix == ".js" and (what in NAME_RULES or "gateway object" in what) else code
             if re.search(pattern, target, flags=re.I):
                 problems.append(f"{rel}: contains {what}")
-        if path.suffix == ".js":
-            literal = CALL.findall(code)
-            if len(literal) != len(ANY_CALL.findall(code)):
+        if suffix == ".js":
+            literal = CALL.findall(keep_call_names(code))
+            if len(literal) != len(ANY_CALL.findall(names)):
                 problems.append(f"{rel}: write each gateway.call tool name as a plain string")
             for _, tool in literal:
                 if not any(matches(p, tool) for p in granted):
                     problems.append(f"{rel}: calls {tool}, which no role is granted in app.yaml")
-    if (folder / "index.html").is_file() and "/web/gateway.js" not in (folder / "index.html").read_text():
+    index = folder / "index.html"
+    if index.is_file() and not re.search(r"<script[^>]*\bsrc\s*=\s*[\"']?/web/gateway\.js",
+                                          re.sub(r"<!--.*?-->", " ", index.read_text(errors="replace"), flags=re.S)):
         problems.append("index.html must load /web/gateway.js")
     return problems
 
