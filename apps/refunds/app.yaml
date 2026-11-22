@@ -1,0 +1,13 @@
+title: Refunds
+description: Review customer refund requests; issue or decline them.
+owner: support
+access: [support_agent, support_lead]
+connectors: [refunds]
+roles:
+  support_agent:
+    tools: [refunds.list_refunds, refunds.issue_refund]
+  support_lead:
+    tools: [refunds.list_refunds, refunds.issue_refund, refunds.decline_refund]
+audit: [refunds.issue_refund, refunds.decline_refund]
+audit_viewers: [support_lead]
+audit_retention_days: 2555   # 7 years
