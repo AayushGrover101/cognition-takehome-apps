@@ -29,6 +29,8 @@ what each signed-in person may see and do, so an app never contains permissions 
   written out as a plain string. No `fetch`, no other network API, no outside addresses, no inline
   `<script>`, no inline event handlers such as `onclick=`, no forms that post, no iframes, no redirects.
 - Every operation called is listed in `app.yaml`, and every operation listed is called.
+- The name `gateway` is reserved. Do not use it for your own variables or properties, and do not store or
+  pass the gateway object around.
 - An app cannot combine Internal and External connectors, and cannot use a Blocked connector.
 - No passwords, keys or tokens anywhere.
 - Audit settings in `app.yaml` stay within the operation's limits in the catalogue.
