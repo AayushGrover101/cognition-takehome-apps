@@ -209,3 +209,8 @@ def test_uppercase_gateway_script_passes(tmp_path):
 def test_block_comment_cannot_join_tokens(tmp_path):
     problems = check_app.check_app(make(tmp_path, js=JS + "void/**/fetch('/x');\n"), CATALOG)
     assert any("fetch()" in p for p in problems), problems
+
+
+def test_gateway_script_path_is_case_sensitive(tmp_path):
+    html = HTML.replace('src="/web/gateway.js"', 'src="/WEB/GATEWAY.JS"')
+    assert "index.html must load /web/gateway.js" in check_app.check_app(make(tmp_path, html=html), CATALOG)

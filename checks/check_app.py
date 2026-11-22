@@ -215,8 +215,8 @@ def check_app(folder, catalog):
                 if not any(matches(p, tool) for p in granted):
                     problems.append(f"{rel}: calls {tool}, which no role is granted in app.yaml")
     index = folder / "index.html"
-    if index.is_file() and not re.search(r"<script[^>]*\bsrc\s*=\s*[\"']?/web/gateway\.js",
-                                          re.sub(r"<!--.*?-->", " ", index.read_text(errors="replace"), flags=re.S), flags=re.I):
+    if index.is_file() and not re.search(r"(?i:<script[^>]*\bsrc)\s*=\s*[\"']?/web/gateway\.js",
+                                          re.sub(r"<!--.*?-->", " ", index.read_text(errors="replace"), flags=re.S)):
         problems.append("index.html must load /web/gateway.js")
     return problems
 
