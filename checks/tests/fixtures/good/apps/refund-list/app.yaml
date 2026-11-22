@@ -1,0 +1,5 @@
+title: Refund list
+access: [support, support_lead]
+operations: [refunds.list_refunds, refunds.issue_refund]
+audit:
+  refunds.list_refunds: {retention_days: 180}

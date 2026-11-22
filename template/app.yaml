@@ -1,0 +1,18 @@
+# One file per app. The gateway refuses any call that is not listed here.
+title: My app
+description: One sentence on what this app is for.
+owner: your-name
+
+# Roles that may open the app. One or more of: analyst, senior_reviewer, support, support_lead, admin
+access: [analyst]
+
+# Operations the app uses, from platform/catalog.json. Internal and External connectors cannot be combined.
+operations:
+  - kyc.list_cases
+
+# Optional, per operation. Auditing is on by default.
+#   enabled: false        only allowed for operations that neither change data nor return hidden fields
+#   retention_days: 400   may be longer than the operation's minimum, never shorter
+#   mask_inputs: [reason] inputs to hide in the audit log
+# audit:
+#   kyc.list_cases: {retention_days: 180}
