@@ -72,8 +72,9 @@ el.innerHTML = ui.result(r);              // shows the gateway's reason when it 
 - `/web/topbar.js` draws the standard top bar (app name, person, Sign out, Audit trail link).
 - `gateway.call` throws an `Error` whose message is the reason when a call is refused.
 - `me.tools` lists the tools the signed-in role has in this app. Use it only to hide buttons; the gateway enforces.
-- Don't copy business rules (limits, allowed transitions) into the app. The system enforces them and the gateway
-  returns its reason.
+- Don't enforce business rules (limits, allowed transitions) in the app. You may use a record's status to hide an
+  action that obviously doesn't apply (no "Issue refund" on an issued refund), but the system enforces the rule and
+  the gateway returns its reason, which the app shows.
 
 ## Look and feel
 

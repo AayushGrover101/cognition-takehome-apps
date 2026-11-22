@@ -114,7 +114,7 @@ def test_code_only_changes_publish_and_permission_changes_need_review(tmp_path):
 
 
 def test_the_apps_in_this_repo_pass():
-    for folder in sorted((ROOT / "apps").iterdir()):
+    for folder in sorted((ROOT / "apps").glob("*")):
         if folder.is_dir():
             assert check_app.check_app(folder, CATALOG) == [], folder.name
 
@@ -122,3 +122,52 @@ def test_the_apps_in_this_repo_pass():
 def test_words_inside_strings_are_fine(tmp_path):
     js = JS + "document.title = 'Refused by the gateway: open the location page';\n"
     assert check_app.check_app(make(tmp_path, js=js), CATALOG) == []
+
+
+@pytest.mark.parametrize("js, problem", [
+    ("globalThis['fet' + 'ch']('/x')", "computed or encoded"),
+    ("window['loca' + 'tion'] = '/x'", "computed or encoded"),
+    ("[].constructor.constructor('x')()", "computed or encoded"),
+])
+def test_computed_access_fails(tmp_path, js, problem):
+    problems = check_app.check_app(make(tmp_path, js=JS + js), CATALOG)
+    assert any(problem in p for p in problems), problems
+
+
+@pytest.mark.parametrize("name, text, problem", [
+    ("app.css", "@import url('/x.css');", "@import"),
+    ("app.css", "main { background: url(https://evil.test/p.png); }", "outside address"),
+    ("logo.svg", "<svg><script>alert(1)</script></svg>", "a <script>"),
+    ("logo.svg", '<svg onload="x()"></svg>', "inline event handler"),
+])
+def test_css_and_svg_are_checked(tmp_path, name, text, problem):
+    problems = check_app.check_app(make(tmp_path, extra={name: text}), CATALOG)
+    assert any(problem in p for p in problems), problems
+
+
+def test_script_sources_must_be_local_files(tmp_path):
+    html = HTML.replace("<main", '<script src="data:text/javascript,alert(1)"></script><main')
+    assert any("isn't a local .js file" in p for p in check_app.check_app(make(tmp_path, html=html), CATALOG))
+
+
+def test_commented_out_gateway_script_fails(tmp_path):
+    html = HTML.replace('<script src="/web/gateway.js" defer></script>', '<!-- <script src="/web/gateway.js"></script> -->')
+    assert "index.html must load /web/gateway.js" in check_app.check_app(make(tmp_path, html=html), CATALOG)
+
+
+def test_harmless_formatting_and_messages_pass(tmp_path):
+    html = HTML.replace('<script src="/web/gateway.js"', '<script src = "/web/gateway.js"')
+    js = JS + "document.title = `Refused by the gateway`;\nconst help = \"Use gateway.call(name, inputs)\";\n"
+    assert check_app.check_app(make(tmp_path, html=html, js=js), CATALOG) == []
+
+
+@pytest.mark.parametrize("extra, problem", [
+    ("  support_lead: {tools: 42}\n", "must be a list of tool names"),
+    ("audit_viewers: support_lead\n", "audit_viewers must be a list"),
+])
+def test_malformed_manifests_report_instead_of_crashing(tmp_path, extra, problem):
+    yaml = YAML.replace("  support_lead: {tools: [refunds.*]}\n", extra if "support_lead" in extra else "  support_lead: {tools: [refunds.*]}\n")
+    yaml += "" if "support_lead" in extra else extra
+    assert any(problem in p for p in check_app.check_app(make(tmp_path, yaml=yaml), CATALOG))
+    bad = YAML.replace("connectors: [refunds]", "connectors: [refunds, 7]")
+    assert "connectors must be a list" in check_app.check_app(make(tmp_path / "b", yaml=bad), CATALOG)
