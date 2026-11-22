@@ -91,6 +91,7 @@ def scan_js(code, strings="keep"):
             j = code.find("\n", i); i = n if j < 0 else j
         elif code.startswith("/*", i):
             j = code.find("*/", i + 2); i = n if j < 0 else j + 2
+            out.append(" ")
         elif c in "'\"":
             m = re.compile(c + r"(?:\\.|[^" + c + r"\\\n])*" + c).match(code, i)
             if not m:
@@ -214,8 +215,8 @@ def check_app(folder, catalog):
                 if not any(matches(p, tool) for p in granted):
                     problems.append(f"{rel}: calls {tool}, which no role is granted in app.yaml")
     index = folder / "index.html"
-    if index.is_file() and not re.search(r"<script[^>]*\bsrc\s*=\s*[\"']?/web/gateway\.js",
-                                          re.sub(r"<!--.*?-->", " ", index.read_text(errors="replace"), flags=re.S), flags=re.I):
+    if index.is_file() and not re.search(r"(?i:<script[^>]*\bsrc)\s*=\s*[\"']?/web/gateway\.js",
+                                          re.sub(r"<!--.*?-->", " ", index.read_text(errors="replace"), flags=re.S)):
         problems.append("index.html must load /web/gateway.js")
     return problems
 
