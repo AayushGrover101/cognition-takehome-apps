@@ -27,7 +27,7 @@ what each signed-in person may see and do, so an app never contains permissions 
   code, no build step, no packages.
 - Data access is only `gateway.call('connector.operation', { ...inputs })`, with the operation name
   written out as a plain string. No `fetch`, no other network API, no outside addresses, no inline
-  `<script>`, no forms that post, no iframes, no redirects.
+  `<script>`, no inline event handlers such as `onclick=`, no forms that post, no iframes, no redirects.
 - Every operation called is listed in `app.yaml`, and every operation listed is called.
 - An app cannot combine Internal and External connectors, and cannot use a Blocked connector.
 - No passwords, keys or tokens anywhere.

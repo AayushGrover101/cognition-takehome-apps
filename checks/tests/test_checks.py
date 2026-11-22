@@ -80,12 +80,23 @@ def test_the_word_gateway_in_text_is_fine_but_aliasing_is_not(tmp_path):
     app.mkdir(parents=True)
     (app / "app.yaml").write_text("title: Company gateway status\naccess: [analyst]\noperations: [kyc.list_cases]\n")
     (app / "index.html").write_text("<!doctype html><h1>Company gateway</h1><p>Data comes through the gateway.</p>")
-    (app / "app.js").write_text("const note = 'Ask the gateway. Then wait.';\ngateway.call('kyc.list_cases');\n")
+    (app / "app.js").write_text(
+        "const note = 'Ask the gateway. Then wait, gateway';  // via the gateway\n"
+        "/* the gateway\n decides */\n"
+        "const text = `From the gateway: ${(await gateway.call('kyc.list_cases')).length} cases`;\n")
     assert not [p for _, found in check_app.check_app("wordy", app, CATALOG) for p in found]
-    for line in ["const g = gateway;", "run(gateway);", "gateway['call']('refunds.issue_refund');", "gateway\n  .call(name);"]:
+    for line in ["const g = gateway;", "run(gateway);", "gateway['call']('refunds.issue_refund');", "gateway\n  .call(name);",
+                 "gateway?.call(name);", "const g = true && gateway;", "x = `${gateway.call(name)}`;",
+                 "gateway.call('kyc.' + name);", "gateway.call(`kyc.${name}`);"]:
         (app / "app.js").write_text("gateway.call('kyc.list_cases');\n" + line + "\n")
         results = dict(check_app.check_app("wordy", app, CATALOG))
         assert results["Code uses only the operations the app is approved for"], line
+    (app / "app.js").write_text("gateway.call('kyc.list_cases');\n")
+    for markup in ['<button onclick="gateway.call(name)">Go</button>', '<svg onload="gateway.call(name)"></svg>',
+                   '<a href="javascript:gateway.call(name)">Go</a>']:
+        (app / "index.html").write_text("<!doctype html>" + markup)
+        results = dict(check_app.check_app("wordy", app, CATALOG))
+        assert results["No direct network access or outside addresses"], markup
 
 
 def test_unknown_app_name_fails_locally():

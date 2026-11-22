@@ -41,6 +41,11 @@ NETWORK = {
     r"<\s*meta[^>]+http-equiv": "meta http-equiv",
     r"<\s*script(?![^>]*\bsrc\s*=)[^>]*>": "inline <script>, put code in a .js file,",
 }
+# Checked in .html and .svg files only, where these would be code hiding outside a .js file.
+MARKUP = {
+    r"<[^>]*\son[a-z]+\s*=": "inline event handler (use addEventListener in a .js file)",
+    r"\bjavascript\s*:": "javascript: link",
+}
 SECRETS = {
     r"AKIA[0-9A-Z]{16}": "AWS access key",
     r"-----BEGIN [A-Z ]*PRIVATE KEY-----": "private key",
@@ -50,15 +55,70 @@ SECRETS = {
     r"(?i)\b(?:password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token)\b\s*[:=]\s*['\"][^'\"\s]{6,}['\"]": "hard-coded password or key",
     r"[a-z][a-z0-9+.-]*://[^/\s:@'\"]+:[^@\s'\"]+@": "address with a password in it",
 }
-# Code that touches the gateway object: member access, or handing the object itself to something else.
-GATEWAY_USE = re.compile(r"\bgateway(?!\.js\b)\s*(?:\.\s*[a-z_$]|\[)")
-GATEWAY_ALIAS = re.compile(r"(?m)(?:[=(,:\[]|\breturn)\s*gateway\s*(?:[;,)\]}]|$)")
-GATEWAY_CALL = re.compile(r"gateway\.call\(\s*(['\"])([A-Za-z0-9_.]+)\1")
+GATEWAY_USE = re.compile(r"\bgateway\b")
+GATEWAY_CALL = re.compile(r"gateway\.call\(\s*(['\"`])([A-Za-z0-9_.]+)\1")
 GATEWAY_OTHER = re.compile(r"gateway\.(?:me\(|app\b)")
 
 
 def where(path, text, pos):
     return f"{path}:{text.count(chr(10), 0, pos) + 1}"
+
+
+def code_only(text):
+    """JavaScript with comments and the insides of strings blanked out, keeping every position the same.
+
+    Code inside a template literal's ${...} is kept. Best effort: regular-expression literals are not understood.
+    """
+    out, n, i, templates = list(text), len(text), 0, []
+
+    def blank(start, end):
+        for k in range(start, min(end, n)):
+            if out[k] != "\n":
+                out[k] = " "
+
+    def template(start):
+        j = start
+        while j < n and text[j] != "`" and text[j:j + 2] != "${":
+            j += 2 if text[j] == "\\" else 1
+        blank(start, j)
+        if text[j:j + 2] == "${":
+            templates.append(0)
+            return j + 2
+        return j + 1
+
+    while i < n:
+        ch, two = text[i], text[i:i + 2]
+        if two == "//":
+            end = text.find("\n", i)
+            end = n if end < 0 else end
+            blank(i, end)
+            i = end
+        elif two == "/*":
+            end = text.find("*/", i + 2)
+            end = n if end < 0 else end + 2
+            blank(i, end)
+            i = end
+        elif ch in "'\"":
+            j = i + 1
+            while j < n and text[j] not in (ch, "\n"):
+                j += 2 if text[j] == "\\" else 1
+            blank(i + 1, j)
+            i = j + 1
+        elif ch == "`":
+            i = template(i + 1)
+        elif ch == "{" and templates:
+            templates[-1] += 1
+            i += 1
+        elif ch == "}" and templates:
+            if templates[-1] == 0:
+                templates.pop()
+                i = template(i + 1)
+            else:
+                templates[-1] -= 1
+                i += 1
+        else:
+            i += 1
+    return "".join(out)
 
 
 def scope_check(changed):
@@ -183,7 +243,8 @@ def check_app(name, folder, catalog):
             if is_comment or any(text.startswith(a, match.start()) for a in ALLOWED_ADDRESSES):
                 continue
             network.append(f"{where(rel, text, match.start())}: outside address {snippet}")
-        for pattern, what in NETWORK.items():
+        patterns = {**NETWORK, **MARKUP} if path.suffix.lower() in (".html", ".svg") else NETWORK
+        for pattern, what in patterns.items():
             for match in re.finditer(pattern, text, re.I):
                 network.append(f"{where(rel, text, match.start())}: {what} is not allowed")
         for match in re.finditer(r"<\s*(?:script|link|img)\b[^>]*\b(?:src|href)\s*=\s*['\"]([^'\"]+)['\"]", text, re.I):
@@ -191,12 +252,8 @@ def check_app(name, folder, catalog):
             if target.startswith("/") and not target.startswith("/shared/"):
                 network.append(f"{where(rel, text, match.start())}: {target} must be a file in this app or under /shared/")
         if path.suffix.lower() != ".js":
-            continue
-        # Whole-line // comments may mention the gateway in words.
-        uncommented = re.sub(r"(?m)^[ \t]*//.*$", lambda m: " " * len(m.group()), text)
-        for match in GATEWAY_ALIAS.finditer(uncommented):
-            code.append(f"{where(rel, text, match.start())}: the gateway object may not be stored or passed around")
-        for match in GATEWAY_USE.finditer(uncommented):
+            continue  # other files cannot hold code: inline scripts and event handlers are rejected above
+        for match in GATEWAY_USE.finditer(code_only(text)):
             literal = GATEWAY_CALL.match(text, match.start())
             if literal:
                 called.add(literal.group(2))
