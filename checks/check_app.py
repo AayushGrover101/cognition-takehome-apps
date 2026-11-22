@@ -36,6 +36,7 @@ NETWORK = {
     r"\blocation\s*\.\s*(?:assign|replace)\s*\(": "location redirect",
     r"\blocation(?:\s*\.\s*href)?\s*=(?!=)": "location redirect",
     r"\bdocument\s*\.\s*cookie\b": "document.cookie",
+    r"\b(?:window|globalThis|self|top|parent|frames)\s*\[": "computed access to browser globals",
     r"<\s*(?:iframe|form|object|embed|base)\b": "iframe/form/object/embed/base tag",
     r"<\s*meta[^>]+http-equiv": "meta http-equiv",
     r"<\s*script(?![^>]*\bsrc\s*=)[^>]*>": "inline <script>, put code in a .js file,",

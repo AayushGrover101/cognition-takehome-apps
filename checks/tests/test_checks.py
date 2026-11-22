@@ -48,6 +48,16 @@ def test_bad_app_fails_every_way():
     assert any("private key" in p for p in secrets) and any("hard-coded password" in p for p in secrets)
 
 
+def test_computed_global_access_fails(tmp_path):
+    app = tmp_path / "apps" / "sly"
+    app.mkdir(parents=True)
+    (app / "index.html").write_text((ROOT / "template" / "index.html").read_text())
+    (app / "app.yaml").write_text("title: Sly\naccess: [analyst]\noperations: [kyc.list_cases]\n")
+    (app / "app.js").write_text("gateway.call('kyc.list_cases');\nwindow['fetch']('/admin');\n")
+    results = dict(check_app.check_app("sly", app, CATALOG))
+    assert any("app.js:2" in p and "computed access" in p for p in results["No direct network access or outside addresses"])
+
+
 def test_mixing_internal_and_external_fails():
     found = failures("mixed", "kyc-alerts")
     assert list(found) == ["Connector policy"]
