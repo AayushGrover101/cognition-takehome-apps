@@ -249,7 +249,8 @@ def main():
     for name in names:
         folder = candidate / "apps" / name
         if not folder.is_dir():
-            sections.append((name, [("App removed", [])]))
+            missing = [] if args.changed else [f"There is no folder apps/{name}"]
+            sections.append((name, [("App removed" if args.changed else "App folder exists", missing)]))
             continue
         sections.append((name, check_app(name, folder, catalog)))
 

@@ -88,6 +88,12 @@ def test_the_word_gateway_in_text_is_fine_but_aliasing_is_not(tmp_path):
         assert results["Code uses only the operations the app is approved for"], line
 
 
+def test_unknown_app_name_fails_locally():
+    out = subprocess.run([sys.executable, str(ROOT / "checks" / "check_app.py"), "--candidate", str(FIXTURES / "good"), "refund-lst"],
+                         capture_output=True, text=True)
+    assert out.returncode == 1 and "There is no folder apps/refund-lst" in out.stdout
+
+
 def test_mixing_internal_and_external_fails():
     found = failures("mixed", "kyc-alerts")
     assert list(found) == ["Connector policy"]
