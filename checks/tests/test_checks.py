@@ -171,3 +171,36 @@ def test_malformed_manifests_report_instead_of_crashing(tmp_path, extra, problem
     assert any(problem in p for p in check_app.check_app(make(tmp_path, yaml=yaml), CATALOG))
     bad = YAML.replace("connectors: [refunds]", "connectors: [refunds, 7]")
     assert "connectors must be a list" in check_app.check_app(make(tmp_path / "b", yaml=bad), CATALOG)
+
+
+@pytest.mark.parametrize("js", [
+    "const a = `x${1}`; location.href = 'https://e.test/' + 1; const b = `y`;\n",
+    "const s = \"a//\"; location.href = '/x';\n",
+    "const s = '/*'; location.href = '/x'; const t = '*/';\n",
+    "const r = /'/; location.href = '/x'; const q = '';\n",
+])
+def test_strings_and_comments_cannot_hide_code(tmp_path, js):
+    problems = check_app.check_app(make(tmp_path, js=JS + js), CATALOG)
+    assert any("location" in p for p in problems), problems
+
+
+def test_template_expressions_are_still_checked(tmp_path):
+    problems = check_app.check_app(make(tmp_path, js=JS + "const a = `n: ${location.href}`;\n"), CATALOG)
+    assert any("location" in p for p in problems), problems
+
+
+def test_quoted_comment_marker_cannot_hide_inline_script(tmp_path):
+    html = HTML.replace("<main", '<p title="<!--"></p><script>alert(1)</script><p title="-->"></p><main')
+    assert any("inline <script>" in p for p in check_app.check_app(make(tmp_path, html=html), CATALOG))
+
+
+@pytest.mark.parametrize("src", ["./app.js", "js/app.js"])
+def test_relative_script_paths_pass(tmp_path, src):
+    html = HTML.replace('<script src="app.js"', f'<script src="{src}"')
+    assert html != HTML
+    assert not any("isn't a local" in p for p in check_app.check_app(make(tmp_path, html=html), CATALOG))
+
+
+def test_uppercase_gateway_script_passes(tmp_path):
+    html = HTML.replace('<script src="/web/gateway.js"', '<SCRIPT SRC="/web/gateway.js"')
+    assert "index.html must load /web/gateway.js" not in check_app.check_app(make(tmp_path, html=html), CATALOG)

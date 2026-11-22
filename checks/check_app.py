@@ -35,7 +35,7 @@ BANNED_JS = [
 ]
 BANNED_HTML = [
     (r"<script(?![^>]*\bsrc\s*=)[^>]*>", "an inline <script>"),
-    (r"<script[^>]*\bsrc\s*=\s*[\"']?(?![\s\"'])(?!/web/|/shared/|[a-z0-9_-]+\.js\b)", "a script that isn't a local .js file"),
+    (r"<script[^>]*\bsrc\s*=\s*[\"']?(?![\s\"'])(?!/web/|/shared/|(\./)?[a-z0-9_-][a-z0-9_/-]*\.js\b)", "a script that isn't a local .js file"),
     (r"\bdata:", "a data: address"),
     (r"\son[a-z]+\s*=", "an inline event handler (onclick= and similar)"),
     (r"<form\b", "a form"),
@@ -45,7 +45,7 @@ BANNED_HTML = [
     (r"(src|href)\s*=\s*[\"']?(https?:|//)", "an outside address"),
     (r"javascript:", "a javascript: link"),
 ]
-# Rules about identifiers ignore the text inside '...' and "..." strings, so "Refused by the gateway" is fine.
+# Rules about identifiers ignore text inside strings and template literals, so "Refused by the gateway" is fine.
 NAME_RULES = ("opening windows", "reading or changing location (redirects)", "setting the referrer")
 BANNED_CSS = [
     (r"@import", "@import"),
@@ -58,45 +58,59 @@ BANNED_SVG = [
     (r"<foreignObject\b", "embedded HTML"),
     (r"(href|src)\s*=\s*[\"']?(https?:|//|javascript:|data:)", "an outside address"),
 ]
-QUOTED = re.compile(r"'(?:\\.|[^'\\\n])*'|\"(?:\\.|[^\"\\\n])*\"")
-TEMPLATE = re.compile(r"`(?:\\.|[^`\\$]|\$(?!\{))*`")
-
-
-def mask_strings(code):
-    """Blank out quoted text (and template literals without ${...}), so words in messages don't count."""
-    return TEMPLATE.sub("``", QUOTED.sub("''", code))
-
-
-def keep_call_names(code):
-    """Blank quoted text except a string that is the first argument of gateway.call(...)."""
-    def keep(m):
-        before = code[:m.start()].rstrip()
-        return m.group(0) if re.search(r"gateway\s*\.\s*call\s*\($", before) else "''"
-    return TEMPLATE.sub("``", QUOTED.sub(keep, code))
-
-
 CALL = re.compile(r"gateway\s*\.\s*call\s*\(\s*(['\"])([a-z_]+\.[a-z_*]+)\1")
-
-
-def mask_strings(code):
-    """Blank out quoted text (and template literals without ${...}), so words in messages don't count."""
-    return TEMPLATE.sub("``", QUOTED.sub("''", code))
-
-
-def keep_call_names(code):
-    """Blank quoted text except a string that is the first argument of gateway.call(...)."""
-    def keep(m):
-        before = code[:m.start()].rstrip()
-        return m.group(0) if re.search(r"gateway\s*\.\s*call\s*\($", before) else "''"
-    return TEMPLATE.sub("``", QUOTED.sub(keep, code))
-
-
 ANY_CALL = re.compile(r"gateway\s*\.\s*call\s*\(")
+REGEX_BEFORE = set("(,=:[!&|?{};+-*%<>~^") | {""}
 
 
-def strip_comments(js):
-    js = re.sub(r"/\*.*?\*/", " ", js, flags=re.S)
-    return re.sub(r"(^|[^:'\"\\])//[^\n]*", r"\1", js)
+def scan_js(code, strings="keep"):
+    """Drop comments from JS and, unless strings="keep", blank text inside strings and template literals
+    (strings="calls" keeps the first argument of gateway.call). Expressions inside ${...} stay visible.
+    Anything the scanner can't close (an unterminated string, regex or template) is left as is."""
+    out, i, n, depth = [], 0, len(code), []
+
+    def prev():
+        text = "".join(out).rstrip()
+        word = re.search(r"[A-Za-z_$][\w$]*$", text)
+        return "" if word and word.group(0) in ("return", "typeof", "case", "in", "of") else text[-1:]
+
+    def template_text(i):
+        j = i
+        while j < n and code[j] != "`" and not code.startswith("${", j):
+            j += 2 if code[j] == "\\" else 1
+        if j >= n:
+            out.append(code[i:]); return n
+        out.append(code[i:j] if strings == "keep" else "")
+        if code[j] == "`":
+            out.append("`"); return j + 1
+        out.append("${"); depth.append(0); return j + 2
+
+    while i < n:
+        c = code[i]
+        if code.startswith("//", i):
+            j = code.find("\n", i); i = n if j < 0 else j
+        elif code.startswith("/*", i):
+            j = code.find("*/", i + 2); i = n if j < 0 else j + 2
+        elif c in "'\"":
+            m = re.compile(c + r"(?:\\.|[^" + c + r"\\\n])*" + c).match(code, i)
+            if not m:
+                out.append(c); i += 1; continue
+            keep = strings == "keep" or (strings == "calls" and re.search(r"gateway\s*\.\s*call\s*\($", "".join(out).rstrip()))
+            out.append(m.group(0) if keep else c + c); i = m.end()
+        elif c == "`":
+            out.append("`"); i = template_text(i + 1)
+        elif c == "}" and depth and depth[-1] == 0:
+            depth.pop(); out.append("}"); i = template_text(i + 1)
+        elif c == "/" and prev() in REGEX_BEFORE:
+            m = re.compile(r"/(?:\\.|\[(?:\\.|[^\]\\\n])*\]|[^/\\\n\[])+/[a-z]*").match(code, i)
+            if not m:
+                out.append(c); i += 1; continue
+            out.append(m.group(0)); i = m.end()
+        else:
+            if depth and c in "{}":
+                depth[-1] += 1 if c == "{" else -1
+            out.append(c); i += 1
+    return "".join(out)
 
 
 def matches(pattern, tool):
@@ -186,15 +200,14 @@ def check_app(folder, catalog):
         if rules is None:
             continue
         text = path.read_text(errors="replace")
-        code = strip_comments(text) if suffix == ".js" else re.sub(r"<!--.*?-->", " ", text, flags=re.S) \
-            if suffix in (".html", ".svg") else re.sub(r"/\*.*?\*/", " ", text, flags=re.S)
-        names = mask_strings(code)
+        code = scan_js(text) if suffix == ".js" else text
+        names = scan_js(text, "mask") if suffix == ".js" else text
         for pattern, what in rules:
             target = names if path.suffix == ".js" and (what in NAME_RULES or "gateway object" in what) else code
             if re.search(pattern, target, flags=re.I):
                 problems.append(f"{rel}: contains {what}")
         if suffix == ".js":
-            literal = CALL.findall(keep_call_names(code))
+            literal = CALL.findall(scan_js(text, "calls"))
             if len(literal) != len(ANY_CALL.findall(names)):
                 problems.append(f"{rel}: write each gateway.call tool name as a plain string")
             for _, tool in literal:
@@ -202,7 +215,7 @@ def check_app(folder, catalog):
                     problems.append(f"{rel}: calls {tool}, which no role is granted in app.yaml")
     index = folder / "index.html"
     if index.is_file() and not re.search(r"<script[^>]*\bsrc\s*=\s*[\"']?/web/gateway\.js",
-                                          re.sub(r"<!--.*?-->", " ", index.read_text(errors="replace"), flags=re.S)):
+                                          re.sub(r"<!--.*?-->", " ", index.read_text(errors="replace"), flags=re.S), flags=re.I):
         problems.append("index.html must load /web/gateway.js")
     return problems
 
