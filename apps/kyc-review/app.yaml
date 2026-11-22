@@ -10,3 +10,4 @@ roles:
     tools: [kyc.list_cases, kyc.get_case, kyc.get_case_full, kyc.escalate_case, kyc.decide_case]
 audit_reads: [kyc.get_case_full]     # every full tax ID view is recorded
 audit_viewers: [compliance_officer]
+audit_retention_days: 2555   # 7 years

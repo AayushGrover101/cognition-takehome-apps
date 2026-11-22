@@ -9,3 +9,4 @@ roles:
   support_lead:
     tools: [refunds.list_refunds, refunds.issue_refund, refunds.decline_refund]
 audit_viewers: [support_lead]
+audit_retention_days: 2555   # 7 years
