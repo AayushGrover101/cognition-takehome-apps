@@ -6,3 +6,4 @@ connectors: []        # e.g. [kyc]; can't mix Internal and External, can't use B
 roles: {}             # per role: { tools: [kyc.list_cases, ...] } or [kyc.*]
 audit_reads: []       # read tools to record in this app's audit trail; writes are always recorded
 audit_viewers: []     # roles that can open this app's audit trail
+audit_retention_days: 2555   # how long this app's audit entries are kept; at least the company minimum (1825)
