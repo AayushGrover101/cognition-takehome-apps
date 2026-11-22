@@ -102,18 +102,23 @@ def check_app(name, folder, catalog):
         manifest_problems.append(f"app.yaml could not be read: {error}")
     operations = manifest.get("operations") or []
     access = manifest.get("access") or []
-    if not manifest_problems:
+    for key, value in (("operations", operations), ("access", access)):
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            manifest_problems.append(f"{key} must be a list of names")
+    if not isinstance(operations, list):
+        operations = []
+    operations = [o for o in operations if isinstance(o, str)]
+    if not [p for p in manifest_problems if p.startswith("app.yaml")]:
         if not isinstance(manifest.get("title"), str) or not manifest["title"].strip():
             manifest_problems.append("title is missing")
         if not isinstance(access, list) or not access:
             manifest_problems.append("access must list at least one role")
         else:
-            unknown = [r for r in access if r not in catalog["roles"]]
+            unknown = [r for r in access if not isinstance(r, str) or r not in catalog["roles"]]
             if unknown:
                 manifest_problems.append(f"access lists unknown roles: {', '.join(map(str, unknown))}")
-        if not isinstance(operations, list) or not operations:
+        if not operations:
             manifest_problems.append("operations must list at least one operation")
-            operations = []
         extra = set(manifest) - {"title", "description", "owner", "access", "operations", "audit"}
         if extra:
             manifest_problems.append(f"unknown settings: {', '.join(sorted(extra))}")
@@ -145,12 +150,16 @@ def check_app(name, folder, catalog):
             audit.append(f"audit settings name {operation}, which the app does not use")
             continue
         limits, setting = catalog["operations"][operation]["audit"], setting or {}
+        masked = setting.get("mask_inputs") or [] if isinstance(setting, dict) else None
+        if masked is None or not isinstance(masked, list) or not all(isinstance(p, str) for p in masked):
+            audit.append(f"{operation}: audit settings must look like {{retention_days: 400, mask_inputs: [reason]}}")
+            continue
         if setting.get("enabled") is False and limits["required"]:
             audit.append(f"{operation}: auditing cannot be switched off (it changes data or returns hidden fields)")
         days = setting.get("retention_days", limits["min_retention_days"])
         if not isinstance(days, int) or days < limits["min_retention_days"]:
             audit.append(f"{operation}: retention must be at least {limits['min_retention_days']} days")
-        unknown = [p for p in setting.get("mask_inputs", []) if p not in catalog["operations"][operation]["params"]]
+        unknown = [p for p in masked if p not in catalog["operations"][operation]["params"]]
         if unknown:
             audit.append(f"{operation}: mask_inputs names unknown inputs: {', '.join(unknown)}")
 

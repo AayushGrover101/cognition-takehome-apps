@@ -58,6 +58,23 @@ def test_computed_global_access_fails(tmp_path):
     assert any("app.js:2" in p and "computed access" in p for p in results["No direct network access or outside addresses"])
 
 
+def test_malformed_settings_are_reported_not_crashed(tmp_path):
+    app = tmp_path / "apps" / "odd"
+    app.mkdir(parents=True)
+    (app / "index.html").write_text("<!doctype html>")
+    cases = {
+        "title: Odd\naccess: [analyst]\noperations: [kyc.list_cases]\naudit: {kyc.list_cases: true}\n": "audit settings must look like",
+        "title: Odd\naccess: [analyst]\noperations: [kyc.list_cases]\naudit: {kyc.list_cases: {mask_inputs: 5}}\n": "audit settings must look like",
+        "title: Odd\naccess: [analyst]\noperations: [{a: 1}, 7]\n": "operations must be a list of names",
+        "title: Odd\naccess: analyst\noperations: kyc.list_cases\n": "access must be a list of names",
+        "- a\n- b\n": "app.yaml must be a list of settings",
+    }
+    for text, expected in cases.items():
+        (app / "app.yaml").write_text(text)
+        problems = [p for _, found in check_app.check_app("odd", app, CATALOG) for p in found]
+        assert any(expected in p for p in problems), (text, problems)
+
+
 def test_mixing_internal_and_external_fails():
     found = failures("mixed", "kyc-alerts")
     assert list(found) == ["Connector policy"]
