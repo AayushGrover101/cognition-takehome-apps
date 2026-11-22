@@ -34,15 +34,15 @@ connectors: [refunds]                        # can't mix Business and Non-busine
 roles:                                       # tools per role; anything not listed is refused by the gateway
   support_agent: { tools: [refunds.list_refunds, refunds.issue_refund] }
   support_lead:  { tools: [refunds.*] }      # every refunds tool, including ones added later
-audit_reads: []                              # read tools to record; write tools are always recorded
+audit: [refunds.issue_refund]                # tools to record, reads or writes; nothing is recorded unless listed
 audit_viewers: [support_lead]                # roles that can open this app's audit trail
-audit_retention_days: 2555                   # keep entries 7 years; can't go below the company minimum
+audit_retention_days: 2555                   # optional: keep entries 7 years; without it they're kept
 ```
 
 - Grant the fewest tools each role needs. Prefer exact names over `connector.*`.
 - Sensitive fields come from separate tools (for example `kyc.get_case` returns the last four digits of the tax ID,
   `kyc.get_case_full` the whole number). Grant the full tool only to the roles that need it, and add it to
-  `audit_reads` so every view is recorded.
+  `audit` so every view is recorded. List every write tool under `audit` unless the requester says otherwise.
 
 ## Rules the checks enforce
 

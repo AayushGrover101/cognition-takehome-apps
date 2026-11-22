@@ -4,6 +4,6 @@ owner: team-name
 access: []            # roles that can open the app (see platform/catalog.json "roles")
 connectors: []        # e.g. [kyc]; can't mix Business and Non-business, can't use Blocked
 roles: {}             # per role: { tools: [kyc.list_cases, ...] } or [kyc.*]
-audit_reads: []       # read tools to record in this app's audit trail; writes are always recorded
+audit: []            # tools to record in this app's audit trail (reads or writes); nothing is recorded unless listed
 audit_viewers: []     # roles that can open this app's audit trail
-audit_retention_days: 2555   # how long this app's audit entries are kept; at least the company minimum (1825)
+# audit_retention_days: 2555   # optional: how long audit entries are kept; without it they're kept

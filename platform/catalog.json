@@ -6,10 +6,6 @@
     "default": "high",
     "low": []
   },
-  "audit_retention_days": {
-    "default": 2555,
-    "minimum": 1825
-  },
   "connectors": {
     "flags": {
       "group": "business"
