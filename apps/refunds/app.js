@@ -24,8 +24,8 @@ function showRefund(x, outcome) {
   const can = (t) => tools.includes(t);
   const pending = x.status === 'pending';
   const actions = pending ? [
-    can('refunds.issue_refund') ? '<button class="btn primary" data-act="issue" data-refund="${esc(x.id)}">Issue refund</button>' : '',
-    can('refunds.decline_refund') ? '<button class="btn danger" data-act="decline" data-refund="${esc(x.id)}">Decline</button>' : '',
+    can('refunds.issue_refund') ? `<button class="btn primary" data-act="issue" data-refund="${esc(x.id)}">Issue refund</button>` : '',
+    can('refunds.decline_refund') ? `<button class="btn danger" data-act="decline" data-refund="${esc(x.id)}">Decline</button>` : '',
   ].join('') : '';
   $('#detail').innerHTML = `<h2>${esc(ui.money(x.amount, x.currency))}</h2><p class="hint">${esc(x.id)} · ${esc(x.customer)}</p>
     <dl class="fields"><dt>Reason</dt><dd>${esc(x.reason)}</dd><dt>Status</dt><dd>${esc(ui.label(x.status))}</dd>

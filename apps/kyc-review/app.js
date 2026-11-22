@@ -20,9 +20,9 @@ function showCase(c, outcome) {
   const open = c.status === 'new' || c.status === 'escalated';
   const taxId = c.tax_id ? esc(c.tax_id) : `•••• ${esc(c.tax_id_last4)}`;
   const actions = [
-    can('kyc.get_case_full') && !c.tax_id ? '<button class="btn" data-act="full" data-case="${esc(c.id)}">Show full tax ID</button>' : '',
-    can('kyc.escalate_case') && c.status === 'new' ? '<button class="btn" data-act="escalate" data-case="${esc(c.id)}">Escalate</button>' : '',
-    can('kyc.decide_case') && open ? '<button class="btn primary" data-act="approve" data-case="${esc(c.id)}">Approve</button><button class="btn danger" data-act="reject" data-case="${esc(c.id)}">Reject</button>' : '',
+    can('kyc.get_case_full') && !c.tax_id ? `<button class="btn" data-act="full" data-case="${esc(c.id)}">Show full tax ID</button>` : '',
+    can('kyc.escalate_case') && c.status === 'new' ? `<button class="btn" data-act="escalate" data-case="${esc(c.id)}">Escalate</button>` : '',
+    can('kyc.decide_case') && open ? `<button class="btn primary" data-act="approve" data-case="${esc(c.id)}">Approve</button><button class="btn danger" data-act="reject" data-case="${esc(c.id)}">Reject</button>` : '',
   ].join('');
   const needsReason = actions.includes('escalate') || actions.includes('approve');
   $('#detail').innerHTML = `<h2>${esc(c.customer)}</h2><p class="hint">${esc(c.id)} · ${esc(ui.label(c.status))}</p>
