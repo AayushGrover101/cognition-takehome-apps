@@ -18,7 +18,7 @@ async function loadQueue() {
 function showCase(c, outcome) {
   const can = (t) => tools.includes(t);
   const open = c.status === 'new' || c.status === 'escalated';
-  const taxId = c.tax_id ? esc(c.tax_id) : `•••• ${esc(c.tax_id_last4)}`;
+  const taxId = esc(c.tax_id || c.tax_id_last4);
   const actions = [
     can('kyc.get_case_full') && !c.tax_id ? `<button class="btn" data-act="full" data-case="${esc(c.id)}">Show full tax ID</button>` : '',
     can('kyc.escalate_case') && c.status === 'new' ? `<button class="btn" data-act="escalate" data-case="${esc(c.id)}">Escalate</button>` : '',
