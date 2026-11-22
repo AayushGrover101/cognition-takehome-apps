@@ -17,7 +17,9 @@ connector tools through the gateway. The gateway signs people in, checks every c
 6. Preview against the gateway as each role in `access`, and as one role that isn't (see Preview).
 7. Run `python3 checks/check_app.py <app-name>` and fix every failure.
 8. Open a pull request that changes only `apps/<app-name>/`.
-   - **Code-only change** (html/js/css): the publish checks run, and if they pass it merges and goes live.
+   - **Code-only change** (html/js/css): the publish checks run. For a low-risk app, it merges and goes live if
+     they pass. Apps are high risk unless a platform engineer lists them as low (`app_risk` in the catalogue);
+     for a high-risk app an engineer must approve every change.
    - **`app.yaml` changed** (a new app, or a permission change): the checks run, then an engineer must approve.
      Say in the PR description exactly which roles gain or lose which tools, especially write tools.
 
