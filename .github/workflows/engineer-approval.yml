@@ -1,0 +1,58 @@
+name: Engineer approval
+
+# Required check. Passes when the publish checks need no review (a code-only change to a low-risk app), or when an
+# engineer listed in CODEOWNERS approved the pull request's latest commit. The checks, catalogue and CODEOWNERS
+# come from the base branch. A pull request that edits this file needs code-owner review for /.github/ anyway.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: approval-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  approval:
+    name: Engineer approval
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Check out the base branch (trusted checks, catalogue and CODEOWNERS)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: trusted
+          persist-credentials: false
+
+      - name: Check out the pull request (read only)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: List what the pull request changed
+        run: git -C candidate diff --no-renames --name-only "${{ github.event.pull_request.base.sha }}...$HEAD" > changed.txt
+
+      - name: Does this change need an engineer?
+        id: checks
+        continue-on-error: true
+        run: |
+          pip install --quiet pyyaml
+          python3 trusted/checks/check_app.py --trusted trusted --candidate candidate --changed changed.txt > /dev/null
+
+      - name: Check for an engineer's approval of the latest commit
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR/reviews?per_page=100" --jq '.[]' > reviews.jsonl
+          python3 trusted/checks/approval.py --result "${{ steps.checks.outputs.result }}" --reviews reviews.jsonl \
+            --head "$HEAD" --codeowners trusted/.github/CODEOWNERS

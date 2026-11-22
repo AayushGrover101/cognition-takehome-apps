@@ -17,11 +17,17 @@ Internal apps served by the gateway in `cognition-takehome-platform`. Anyone can
 1. A pull request runs **Publish checks** (`.github/workflows/publish-checks.yml`). The checks come from the main
    branch, and the pull request's files are only read as text.
 2. Result:
-   - **pass** (only app code changed): merged automatically, live on the next gateway request.
-   - **review** (an `app.yaml` or platform file changed): checks passed; a CODEOWNERS engineer must approve and merge.
+   - **pass** (only a low-risk app's code changed): merged automatically, live on the next gateway request.
+   - **review** (an `app.yaml` or platform file changed, or the app is high risk): checks passed; a CODEOWNERS
+     engineer must approve and merge.
+3. **Engineer approval** (`.github/workflows/engineer-approval.yml`) passes when the result needs no review, or when
+   an engineer listed in `CODEOWNERS` approved the pull request's latest commit. A new push needs a new approval.
+
+Apps are high risk by default. Platform engineers list low-risk apps (e.g. read-only dashboards) in the platform
+repo's `app_risk.yaml`; it reaches this repo as `app_risk` in `platform/catalog.json`.
    - **fail**: the comment on the pull request lists what to fix.
 
-Branch protection on `master` should require the Publish checks and code-owner review, so a permission change can't
+Branch protection on `master` should require the Publish checks, Engineer approval and code-owner review, so a permission change can't
 merge without an engineer.
 
 ## Run the checks

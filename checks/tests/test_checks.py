@@ -98,8 +98,10 @@ def test_only_static_files(tmp_path):
     assert problems == ["server.py: file type not allowed (static files only)"]
 
 
-def run_ci(tmp_path, changed):
+def run_ci(tmp_path, changed, low=()):
     shutil.copytree(ROOT / "platform", tmp_path / "platform")
+    catalog = dict(CATALOG, app_risk={"default": "high", "low": list(low)})
+    (tmp_path / "platform" / "catalog.json").write_text(json.dumps(catalog))
     make(tmp_path)
     (tmp_path / "changed.txt").write_text("\n".join(changed))
     out = tmp_path / "out.txt"
@@ -109,10 +111,19 @@ def run_ci(tmp_path, changed):
     return r.returncode, out.read_text().strip()
 
 
-def test_code_only_changes_publish_and_permission_changes_need_review(tmp_path):
-    assert run_ci(tmp_path / "a", ["apps/refunds/app.js"]) == (0, "result=pass")
-    assert run_ci(tmp_path / "b", ["apps/refunds/app.js", "apps/refunds/app.yaml"]) == (0, "result=review")
-    assert run_ci(tmp_path / "c", ["shared/ui.js"]) == (0, "result=review")
+def test_code_only_changes_to_low_risk_apps_publish_and_everything_else_needs_review(tmp_path):
+    assert run_ci(tmp_path / "a", ["apps/refunds/app.js"], low=["refunds"]) == (0, "result=pass")
+    assert run_ci(tmp_path / "b", ["apps/refunds/app.js", "apps/refunds/app.yaml"], low=["refunds"]) == (0, "result=review")
+    assert run_ci(tmp_path / "c", ["shared/ui.js"], low=["refunds"]) == (0, "result=review")
+    assert run_ci(tmp_path / "d", ["apps/refunds/app.js"]) == (0, "result=review")
+
+
+def test_apps_are_high_risk_unless_the_catalogue_lists_them_as_low():
+    assert check_app.review_reasons(["apps/refunds/app.js"], {}) == [
+        "refunds is a high-risk app, so every change needs an engineer's review (app_risk.yaml in the platform repo)"]
+    assert check_app.review_reasons(["apps/refunds/app.js"], {"app_risk": {"low": ["refunds"]}}) == []
+    assert len(check_app.review_reasons(["apps/refunds/app.js", "apps/kyc-review/index.html"],
+                                        {"app_risk": {"low": ["refunds"]}})) == 1
 
 
 def test_the_apps_in_this_repo_pass():

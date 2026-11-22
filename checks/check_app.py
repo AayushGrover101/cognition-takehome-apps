@@ -4,7 +4,8 @@ Local:  python3 checks/check_app.py <app-name>
 CI:     python3 checks/check_app.py --trusted DIR --candidate DIR --changed FILE --summary FILE
 
 Result: pass (publish automatically), review (passes, but an engineer must approve: app.yaml or a
-platform file changed), or fail.
+platform file changed, or the app is high risk), or fail. Apps are high risk unless the catalogue's app_risk lists
+them as low (app_risk.yaml in the platform repo).
 """
 import argparse
 import json
@@ -225,15 +226,19 @@ def check_app(folder, catalog):
     return problems
 
 
-def review_reasons(changed):
-    """Files that need an engineer: any app.yaml (permissions) and anything outside apps/."""
-    reasons = []
+def review_reasons(changed, catalog):
+    """What needs an engineer: any app.yaml (permissions), anything outside apps/, and any change to a high-risk app."""
+    low = set((catalog.get("app_risk") or {}).get("low") or [])
+    reasons, high = [], set()
     for f in changed:
         if f.startswith("apps/") and f.endswith("/app.yaml"):
             reasons.append(f"{f} changed: an engineer must review what this app may do")
         elif not f.startswith("apps/"):
             reasons.append(f"{f} is a platform file: an engineer must review it")
-    return reasons
+        elif f.count("/") >= 2 and f.split("/")[1] not in low:
+            high.add(f.split("/")[1])
+    return reasons + [f"{n} is a high-risk app, so every change needs an engineer's review "
+                      "(app_risk.yaml in the platform repo)" for n in sorted(high)]
 
 
 def run(candidate, catalog, apps):
@@ -258,7 +263,7 @@ def main():
     missing = [n for n in a.apps if not (candidate / "apps" / n).is_dir()]
     results = run(candidate, catalog, names)
     failed = {n: p for n, p in results.items() if p} | {n: ["no such app folder"] for n in missing}
-    review = review_reasons(changed)
+    review = review_reasons(changed, catalog)
     result = "fail" if failed else "review" if review else "pass"
 
     lines = [f"## Publish checks: {result}", ""]
@@ -268,7 +273,7 @@ def main():
     if review:
         lines += ["", "Needs engineer review before it can merge:"] + [f"- {r}" for r in review]
     elif result == "pass":
-        lines += ["", "Only app code changed and every check passed, so this publishes automatically."]
+        lines += ["", "Only a low-risk app's code changed and every check passed, so this publishes automatically."]
     report = "\n".join(lines) + "\n"
     print(report)
     if a.summary:
