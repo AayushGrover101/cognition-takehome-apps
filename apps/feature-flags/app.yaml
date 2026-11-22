@@ -1,0 +1,11 @@
+title: Feature flags
+description: See and change feature flags and rollout percentages.
+owner: engineering
+access: [product_manager, engineer]
+connectors: [flags]
+roles:
+  product_manager:
+    tools: [flags.list_flags]
+  engineer:
+    tools: [flags.list_flags, flags.set_flag]
+audit_viewers: [engineer, product_manager]

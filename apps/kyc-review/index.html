@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KYC review</title>
+<link rel="stylesheet" href="/web/base.css"><link rel="stylesheet" href="/shared/ui.css">
+<script src="/web/gateway.js" defer></script><script src="/web/topbar.js" defer></script>
+<script src="/shared/ui.js" defer></script><script src="app.js" defer></script></head>
+<body>
+<main class="page">
+<header class="page-head"><h1>KYC review</h1><p class="sub">Identity checks waiting on Compliance. Analysts review and escalate; officers decide.</p></header>
+<div class="split">
+<section>
+<div class="toolbar"><select id="status" aria-label="Status">
+<option value="new">New</option><option value="escalated">Escalated</option><option value="approved">Approved</option>
+<option value="rejected">Rejected</option><option value="any">All cases</option></select></div>
+<table class="data"><thead><tr><th>Case</th><th>Customer</th><th>Country</th><th>Risk</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table>
+</section>
+<aside class="drawer" id="detail"><p class="empty">Select a case to review it.</p></aside>
+</div>
+</main>
+</body></html>
