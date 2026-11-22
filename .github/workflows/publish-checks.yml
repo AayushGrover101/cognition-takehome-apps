@@ -36,8 +36,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      # --no-renames: a file moved out of a protected folder must show up under its old path too.
       - name: List what the pull request changed
-        run: git -C candidate diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" > changed.txt
+        run: git -C candidate diff --no-renames --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" > changed.txt
 
       - name: Run publish checks
         id: checks
