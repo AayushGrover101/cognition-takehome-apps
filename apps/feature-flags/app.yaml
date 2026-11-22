@@ -8,5 +8,6 @@ roles:
     tools: [flags.list_flags]
   engineer:
     tools: [flags.list_flags, flags.set_flag]
+audit: [flags.set_flag]
 audit_viewers: [engineer, product_manager]
-audit_retention_days: 1825   # company minimum
+audit_retention_days: 1825   # 5 years
