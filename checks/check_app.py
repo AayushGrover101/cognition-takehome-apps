@@ -50,7 +50,9 @@ SECRETS = {
     r"(?i)\b(?:password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token)\b\s*[:=]\s*['\"][^'\"\s]{6,}['\"]": "hard-coded password or key",
     r"[a-z][a-z0-9+.-]*://[^/\s:@'\"]+:[^@\s'\"]+@": "address with a password in it",
 }
-GATEWAY_USE = re.compile(r"\bgateway\b(?!\.js)")
+# Code that touches the gateway object: member access, or handing the object itself to something else.
+GATEWAY_USE = re.compile(r"\bgateway(?!\.js\b)\s*(?:\.\s*[a-z_$]|\[)")
+GATEWAY_ALIAS = re.compile(r"(?m)(?:[=(,:\[]|\breturn)\s*gateway\s*(?:[;,)\]}]|$)")
 GATEWAY_CALL = re.compile(r"gateway\.call\(\s*(['\"])([A-Za-z0-9_.]+)\1")
 GATEWAY_OTHER = re.compile(r"gateway\.(?:me\(|app\b)")
 
@@ -188,8 +190,12 @@ def check_app(name, folder, catalog):
             target = match.group(1)
             if target.startswith("/") and not target.startswith("/shared/"):
                 network.append(f"{where(rel, text, match.start())}: {target} must be a file in this app or under /shared/")
+        if path.suffix.lower() != ".js":
+            continue
         # Whole-line // comments may mention the gateway in words.
         uncommented = re.sub(r"(?m)^[ \t]*//.*$", lambda m: " " * len(m.group()), text)
+        for match in GATEWAY_ALIAS.finditer(uncommented):
+            code.append(f"{where(rel, text, match.start())}: the gateway object may not be stored or passed around")
         for match in GATEWAY_USE.finditer(uncommented):
             literal = GATEWAY_CALL.match(text, match.start())
             if literal:

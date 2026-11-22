@@ -75,6 +75,19 @@ def test_malformed_settings_are_reported_not_crashed(tmp_path):
         assert any(expected in p for p in problems), (text, problems)
 
 
+def test_the_word_gateway_in_text_is_fine_but_aliasing_is_not(tmp_path):
+    app = tmp_path / "apps" / "wordy"
+    app.mkdir(parents=True)
+    (app / "app.yaml").write_text("title: Company gateway status\naccess: [analyst]\noperations: [kyc.list_cases]\n")
+    (app / "index.html").write_text("<!doctype html><h1>Company gateway</h1><p>Data comes through the gateway.</p>")
+    (app / "app.js").write_text("const note = 'Ask the gateway. Then wait.';\ngateway.call('kyc.list_cases');\n")
+    assert not [p for _, found in check_app.check_app("wordy", app, CATALOG) for p in found]
+    for line in ["const g = gateway;", "run(gateway);", "gateway['call']('refunds.issue_refund');", "gateway\n  .call(name);"]:
+        (app / "app.js").write_text("gateway.call('kyc.list_cases');\n" + line + "\n")
+        results = dict(check_app.check_app("wordy", app, CATALOG))
+        assert results["Code uses only the operations the app is approved for"], line
+
+
 def test_mixing_internal_and_external_fails():
     found = failures("mixed", "kyc-alerts")
     assert list(found) == ["Connector policy"]
