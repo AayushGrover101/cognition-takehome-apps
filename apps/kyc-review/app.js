@@ -82,7 +82,9 @@ async function act(kind) {
     ? await ui.attempt(() => gateway.call('kyc.escalate_case', { case_id: id, reason }), `${id} escalated to senior review.`)
     : await ui.attempt(() => gateway.call('kyc.decide_case', { case_id: id, decision: kind, reason }),
       `${id} ${kind === 'approve' ? 'approved' : 'rejected'}.`);
-  if (r.ok) { state.notice = r; renderCase(r.data); loadQueue(); return; }
+  loadQueue();
+  if (id !== $('#drawer').dataset.case) return;
+  if (r.ok) { state.notice = r; renderCase(r.data); return; }
   $('#drawer').querySelector('.result')?.remove();
   $('#drawer').insertAdjacentHTML('beforeend', ui.result(r));
 }
