@@ -13,7 +13,7 @@ async function loadQueue() {
   if (!r.data.length) { el.className = 'empty'; el.textContent = 'No cases with this status.'; return; }
   el.className = '';
   el.innerHTML = `<table class="data"><thead><tr><th>Case</th><th>Customer</th><th>Country</th><th>Risk</th><th>Status</th></tr></thead><tbody>
-    ${r.data.map((c) => `<tr data-id="${ui.escape(c.id)}" class="${c.id === state.selected ? 'on' : ''}">
+    ${r.data.map((c) => `<tr data-id="${ui.escape(c.id)}" tabindex="0" class="${c.id === state.selected ? 'on' : ''}">
       <td>${ui.escape(c.id)}</td><td>${ui.escape(c.customer)}</td><td>${ui.escape(c.country)}</td>
       <td>${badge(c.risk, RISK[c.risk])}</td><td>${badge(c.status, STATUS[c.status])}</td></tr>`).join('')}
     </tbody></table>`;
@@ -93,6 +93,10 @@ $('#status').addEventListener('change', loadQueue);
 $('#queue').addEventListener('click', (e) => {
   const row = e.target.closest('tr[data-id]');
   if (row) showCase(row.dataset.id);
+});
+$('#queue').addEventListener('keydown', (e) => {
+  const row = e.target.closest('tr[data-id]');
+  if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); showCase(row.dataset.id); }
 });
 $('#drawer').addEventListener('click', (e) => {
   if (e.target.closest('#reveal')) return revealTaxId();
