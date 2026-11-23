@@ -1,39 +1,54 @@
 # cognition-takehome-apps
 
-Internal apps served by the gateway in `cognition-takehome-platform`. Anyone can ask Devin for an app; Devin follows
-[AGENTS.md](AGENTS.md).
+The internal apps. **You don't run this repo.** Run the gateway in
+[cognition-takehome-platform](https://github.com/AayushGrover101/cognition-takehome-platform). It reads the apps from
+this repo (`APPS_DIR`) and serves them, so this repo holds only the screens and their permission files.
 
-| Path | What it is | Who changes it |
-| --- | --- | --- |
-| `apps/<name>/` | One app: static files + `app.yaml` | Anyone (via Devin). `app.yaml` needs engineer approval |
-| `platform/catalog.json` | Roles, connectors, tools, exported by `python3 -m gateway.catalog` | Platform team |
-| `shared/` | `ui.css`, `ui.js` served at `/shared/` | Platform team |
-| `template/` | Starting point for a new app | Platform team |
-| `checks/` | Publish checks | Platform team |
-| `.github/` | `CODEOWNERS` and the publish workflow | Platform team |
+Each app is a folder of static files under `apps/<name>/`: HTML/JS plus an `app.yaml` that says who can open it,
+which tools each role gets, and what is audited. Apps have no server code and no credentials. They reach data only
+by calling `gateway.call('connector.tool', inputs)`.
 
-## How a change goes live
+## Build an app
 
-1. A pull request runs **Publish checks** (`.github/workflows/publish-checks.yml`). The checks come from the main
-   branch, and the pull request's files are only read as text.
-2. Result:
-   - **pass** (only a low-risk app's code changed): merged automatically, live on the next gateway request.
-   - **review** (an `app.yaml` or platform file changed, or the app is high risk): checks passed; a CODEOWNERS
-     engineer must approve and merge.
-3. **Engineer approval** (`.github/workflows/engineer-approval.yml`) passes when the result needs no review, or when
-   an engineer listed in `CODEOWNERS` approved the pull request's latest commit. A new push needs a new approval.
+Ask Devin for the app in plain English. It follows [AGENTS.md](AGENTS.md): it picks tools from
+`platform/catalog.json`, copies `template/`, uses the shared UI in `shared/`, previews against the gateway and opens
+a pull request.
 
-Apps are high risk by default. Platform engineers list low-risk apps (e.g. read-only dashboards) in the platform
-repo's `app_risk.yaml`; it reaches this repo as `app_risk` in `platform/catalog.json`.
-   - **fail**: the comment on the pull request lists what to fix.
+## Preview an app
 
-Branch protection on `master` should require the Publish checks, Engineer approval and code-owner review, so a permission change can't
-merge without an engineer.
+Clone both repos next to each other and start the gateway:
+
+```bash
+cd cognition-takehome-platform
+pip install -r requirements.txt
+APPS_DIR=../cognition-takehome-apps python3 -m uvicorn gateway.main:app --port 8090
+```
+
+Open http://localhost:8090/signin?next=/apps/<name>/ and pick a person. The gateway re-reads `apps/` on every
+request, so edits show up on reload.
 
 ## Run the checks
 
 ```bash
 pip install pyyaml pytest
-python3 checks/check_app.py <app-name>
+python3 checks/check_app.py <name>      # the same checks CI runs on a pull request
 python3 -m pytest checks/tests
 ```
+
+## How a change goes live
+
+1. **Publish checks** run on every pull request. They come from `master`, so a pull request can't change its own
+   checks. They refuse network calls, inline scripts, credentials, tools not in `app.yaml`, and apps that mix
+   Business and Non-business connectors.
+2. If only a low-risk app's code changed, the pull request merges automatically.
+3. If `app.yaml` changed or the app is high risk (the default), an engineer in `CODEOWNERS` must approve the latest
+   commit (**Engineer approval** check).
+
+For these checks to block merging, branch protection on `master` must require **Publish checks**,
+**Engineer approval** and code-owner review.
+
+| Path | What it is | Who changes it |
+| --- | --- | --- |
+| `apps/<name>/` | One app | Anyone, via Devin. `app.yaml` needs an engineer's approval. |
+| `platform/catalog.json` | Roles, connectors and tools, exported from the gateway | Platform team |
+| `shared/`, `template/`, `checks/`, `.github/` | Shared UI, app starter, checks, workflows | Platform team |
