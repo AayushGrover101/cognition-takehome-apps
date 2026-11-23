@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KYC review</title>
+<link rel="stylesheet" href="/web/base.css"><link rel="stylesheet" href="/shared/ui.css"><link rel="stylesheet" href="app.css">
+<script src="/web/gateway.js" defer></script><script src="/web/topbar.js" defer></script>
+<script src="/shared/ui.js" defer></script><script src="app.js" defer></script></head>
+<body>
+<main class="page">
+<header class="page-head"><h1>KYC review</h1><p class="sub">Identity-verification cases waiting for a decision.</p></header>
+<div class="split">
+  <section>
+    <div class="toolbar">
+      <select id="status" aria-label="Status">
+        <option value="any">All statuses</option>
+        <option value="new" selected>New</option>
+        <option value="escalated">Escalated</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+      </select>
+    </div>
+    <div id="queue" class="empty">Loading cases…</div>
+  </section>
+  <aside id="drawer" class="drawer"><p class="empty">Select a case to see its details.</p></aside>
+</div>
+</main>
+</body></html>
