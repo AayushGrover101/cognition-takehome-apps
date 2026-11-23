@@ -26,6 +26,7 @@ function taxCell(c, full) {
 }
 
 function renderCase(c, full) {
+  $('#drawer').dataset.case = c.id;
   const decided = c.status === 'approved' || c.status === 'rejected';
   const escalate = can('kyc.escalate_case') && c.status === 'new';
   const decide = can('kyc.decide_case') && !decided;
@@ -55,20 +56,27 @@ function renderCase(c, full) {
 async function showCase(id) {
   state.selected = id;
   document.querySelectorAll('#queue tr[data-id]').forEach((tr) => tr.classList.toggle('on', tr.dataset.id === id));
+  delete $('#drawer').dataset.case;
+  $('#drawer').innerHTML = '<p class="empty">Loading case…</p>';
   const r = await ui.attempt(() => gateway.call('kyc.get_case', { case_id: id }));
+  if (id !== state.selected) return;
   if (!r.ok) { $('#drawer').innerHTML = ui.result(r); return; }
   renderCase(r.data);
 }
 
 async function revealTaxId() {
-  const id = state.selected;
+  const id = $('#drawer').dataset.case;
+  const reason = $('#reason')?.value || '';
   const r = await ui.attempt(() => gateway.call('kyc.get_case_full', { case_id: id }));
-  if (!r.ok) { state.notice = r; return showCase(id); }
+  if (id !== $('#drawer').dataset.case) return;
+  if (!r.ok) { $('#drawer').insertAdjacentHTML('beforeend', ui.result(r)); return; }
   renderCase(r.data, r.data.tax_id);
+  if ($('#reason')) $('#reason').value = reason;
 }
 
 async function act(kind) {
-  const id = state.selected;
+  const id = $('#drawer').dataset.case;
+  if (!id) return;
   const reason = $('#reason').value;
   const r = kind === 'escalate'
     ? await ui.attempt(() => gateway.call('kyc.escalate_case', { case_id: id, reason }), `${id} escalated to senior review.`)
