@@ -1,4 +1,4 @@
-// KYC review: queue, case details, escalate (everyone), approve/reject and full tax ID (compliance officers).
+// KYC review: queue, case details, escalate (everyone), approve/reject and full tax ID (compliance officers; the gateway refuses others).
 const $ = (s) => document.querySelector(s);
 const STATUS = { new: 'info', escalated: 'warn', approved: 'ok', rejected: 'bad' };
 const RISK = { low: '', medium: 'warn', high: 'bad' };
@@ -21,8 +21,7 @@ async function loadQueue() {
 
 function taxCell(c, full) {
   if (full) return `<span class="tax">${ui.escape(full)}</span>`;
-  const reveal = can('kyc.get_case_full') ? '<button class="btn" id="reveal" type="button">Show full</button>' : '';
-  return `<span class="tax">${ui.escape(c.tax_id_last4)}${reveal}</span>`;
+  return `<span class="tax">${ui.escape(c.tax_id_last4)}<button class="btn" id="reveal" type="button">Show full</button></span>`;
 }
 
 function renderCase(c, full) {
@@ -47,7 +46,7 @@ function renderCase(c, full) {
       <dt>Reason</dt><dd>${ui.escape(c.decision_reason || '—')}</dd>
     </dl>
     ${full ? '<p class="hint">This view of the full tax ID was recorded in the audit trail.</p>' : ''}
-    ${can('kyc.get_case_full') && !full ? '<p class="hint">Viewing the full tax ID is recorded in the audit trail.</p>' : ''}
+    ${!full ? '<p class="hint">Viewing the full tax ID is recorded in the audit trail.</p>' : ''}
     ${actions}
     ${ui.result(state.notice)}`;
   state.notice = null;
@@ -69,7 +68,7 @@ async function revealTaxId() {
   const reason = $('#reason')?.value || '';
   const r = await ui.attempt(() => gateway.call('kyc.get_case_full', { case_id: id }));
   if (id !== $('#drawer').dataset.case) return;
-  if (!r.ok) { $('#drawer').insertAdjacentHTML('beforeend', ui.result(r)); return; }
+  if (!r.ok) { $('#drawer').querySelector('.result')?.remove(); $('#drawer').insertAdjacentHTML('beforeend', ui.result(r)); return; }
   renderCase(r.data, r.data.tax_id);
   if ($('#reason')) $('#reason').value = reason;
 }
